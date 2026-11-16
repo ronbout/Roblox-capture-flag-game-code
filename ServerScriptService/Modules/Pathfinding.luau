@@ -1,9 +1,5 @@
 local PathfindingService = game:GetService("PathfindingService")
-local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-
---local targetPart1 = workspace:WaitForChild("Destination")
---local waypointsFolder = workspace:WaitForChild("Waypoints")
 
 local GROUND_WAIT = 0.01
 local VELOCITY_MULTIPLIER = 0.0625
@@ -177,6 +173,7 @@ local function isCurrentWaypointReached(self, delta)
 			end
 		end
 	end
+	return reached
 end
 
 local function calculateNextWaypointApproach(self)
@@ -262,11 +259,9 @@ local function findStartingPoint(self)
 		return
 	end
 	self.nextWaypointIndex = 1
-	local humPos = self.humanoid.RootPart.Position
 	while self.nextWaypointIndex + 1 <= #self.waypoints do
 		local dist = self.waypoints[self.nextWaypointIndex + 1].Position - self.humanoid.RootPart.Position
 		dist = Vector3.new(dist.X, 0, dist.Z)
-		local distMagnitude = dist.magnitude
 		if dist.magnitude >= 2 then
 			return
 		end
