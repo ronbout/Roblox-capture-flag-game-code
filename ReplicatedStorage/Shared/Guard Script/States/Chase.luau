@@ -1,8 +1,6 @@
 -- Chase and attack the spotted player.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local PathFindingService = game:GetService("PathfindingService")
 local SimpleStateMachine = require(ReplicatedStorage.Shared.SimpleStateMachine)
-local activeMap = workspace:WaitForChild("ActiveMap")
 local ServerScriptService = game:GetService("ServerScriptService")
 local ServerModules = ServerScriptService:WaitForChild("Modules")
 local Pathfinding = require(ServerModules:WaitForChild("Pathfinding"))
@@ -10,31 +8,11 @@ local Pathfinding = require(ServerModules:WaitForChild("Pathfinding"))
 local GameInfo = ReplicatedStorage:WaitForChild("GameInfo")
 local GameParameters = require(GameInfo.GameParameters)
 
-local LeaveTrail = require(ReplicatedStorage:WaitForChild("Debug"):WaitForChild("LeaveTrail"))
-
 type State = SimpleStateMachine.State
 type Context = SimpleStateMachine.Context
 
---local function drawWaypoints(waypoints: {PathWaypoint}) : {BasePart}
---	local partsTable = {}
---	for i, waypoint in ipairs(waypoints) do
---		local part = Instance.new("Part")
---		part.Name = "Waypoint"
---		part.Size = Vector3.new(1, 0.4, 1)
---		part.Position = waypoint.Position
---		part.Anchored = true
---		part.CanCollide = false
---		part.Parent = activeMap
---		part.BrickColor = BrickColor.new("Really red")
---		if not GameParameters.pathfindDebug then part.Transparency = 1 end
---		partsTable[i] = part
---	end
---	return partsTable
---end
-
 -- Walk towards the spotted player and attack if close enough.
 local function chase(context: Context)
-	local humanoid = context.humanoid :: Humanoid
 	local targetCharacter = context.targetPlayer.Character
 	if not targetCharacter then
 		return
@@ -45,11 +23,6 @@ local function chase(context: Context)
 		return
 	end
 
-	--local targetPosition = targetCharacter:GetPivot().Position
-
-	-- local targetDirection = (targetCharacter:GetPivot().Position - context.humanoidRootPart.Position).Unit
-	--local stoppingDistance = 4  -- this doesn't matter as the guard will go into attack mode by then
-	--local targetPosition = targetCharacter:GetPivot().Position - (targetDirection * stoppingDistance)
 	local targetPosition = targetCharacter:GetPivot().Position
 
 	local function shouldAbort()
@@ -58,6 +31,8 @@ local function chase(context: Context)
 			context.character:SetAttribute("IsChasing", false)
 			return true
 		end
+		-- check if the target has strayed too far from the original target position.
+		-- If so, abort the pathfinding and recalc a new path.
 		return false
 	end
 
@@ -95,7 +70,7 @@ local function chase(context: Context)
 		return
 	end
 
-	local pathResult = pathfindingObj:StartPath()
+	local _pathResult = pathfindingObj:StartPath()
 
 	pathfindingObj.OnComplete:Connect(function()
 		print("Pathfinding completed for ", context.character.Name, context.targetFlag.Name)
