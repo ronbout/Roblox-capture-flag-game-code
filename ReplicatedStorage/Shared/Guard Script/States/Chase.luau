@@ -70,7 +70,7 @@ local function chase(context: Context)
 		local targetDistance = (targetCharacter:GetPivot().Position - context.origTargetPosition).Magnitude
 		local tolerance = math.max(minTolerance, npcDistance * toleranceRatio)
 
-		print("targetDistance: ", targetDistance, " tolerance: ", tolerance)
+		-- print("targetDistance: ", targetDistance, " tolerance: ", tolerance)
 
 		if targetDistance > tolerance then
 			print("Target has moved too far from original position.  Recalc path.")

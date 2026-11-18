@@ -1,6 +1,5 @@
 -- Chase and attack the spotted player.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local PathFindingService = game:GetService("PathfindingService")
 local SimpleStateMachine = require(ReplicatedStorage.Shared.SimpleStateMachine)
 
 type State = SimpleStateMachine.State
@@ -11,17 +10,21 @@ local ATTACK_COOLDOWN = 1
 
 -- Walk directly towards the spotted player and attack if close enough.
 local function attack(context: Context)
-	local humanoid = context.humanoid 
+	local humanoid = context.humanoid
 	local hrp = context.humanoidRootPart
 	local targetCharacter = context.targetPlayer.Character
 	if not targetCharacter then
 		return
 	end
 
+	if context.character:GetAttribute("IsAttacking") then
+		return
+	end
+
 	local targetDirection = (targetCharacter:GetPivot().Position - hrp.Position).Unit
 	local stoppingDistance = 4
 	local targetPosition = targetCharacter:GetPivot().Position - (targetDirection * stoppingDistance)
-	
+
 	--local NPCParams = {
 	--	AgentRadius = 2,
 	--	AgentHeight = 5.8,
@@ -38,15 +41,16 @@ local function attack(context: Context)
 	--		return
 	--	end
 	--end
-	humanoid:MoveTo(targetPosition)	
+	context.character:SetAttribute("IsAttacking", true)
+	humanoid:MoveTo(targetPosition)
 	humanoid.MoveToFinished:Wait()
 	hrp.CFrame = CFrame.lookAt(hrp.Position, targetCharacter:GetPivot().Position)
-	
-	-- TODO: after looking at the target, turn just 10 degrees to the left for better attack angle
+
+	-- after looking at the target, turn just 10 degrees to the left for better attack angle
 	hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(10), 0)
 
 	local character = context.character :: Model
-	local distance = (character:GetPivot().Position - targetPosition).Magnitude
+	local distance = (character:GetPivot().Position - targetCharacter:GetPivot().Position).Magnitude
 
 	if distance <= ATTACK_RANGE and os.clock() - context.lastAttackTime >= ATTACK_COOLDOWN then
 		local tool = character:FindFirstChildOfClass("Tool")
@@ -55,10 +59,12 @@ local function attack(context: Context)
 		end
 		context.lastAttackTime = os.clock()
 	end
+
+	context.character:SetAttribute("IsAttacking", false)
 end
 
 local function onEnter(context: Context)
-	context.lastAttackTime = 0 
+	context.lastAttackTime = 0
 	context.character:SetAttribute("IsChasing", false)
 end
 
