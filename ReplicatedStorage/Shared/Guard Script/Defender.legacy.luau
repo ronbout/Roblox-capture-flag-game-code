@@ -24,7 +24,6 @@ local IDLE_DURATION = 1
 local CHASE_RANGE = script.Parent:GetAttribute("DetectionDistance")
 local ATTACK_RANGE = 10
 
-
 local character = script.Parent
 local humanoid = script.Parent:FindFirstChildOfClass("Humanoid") :: Humanoid
 local humanoidRootPart = script.Parent:WaitForChild("HumanoidRootPart")
@@ -32,8 +31,8 @@ local humanoidRootPart = script.Parent:WaitForChild("HumanoidRootPart")
 
 -- Check if the NPC is near the target flag.
 local function isNearTargetFlag(context: Context): boolean
-	local character = context.character :: Model
-	local characterPosition = character:GetPivot().Position
+	local char = context.character :: Model
+	local characterPosition = char:GetPivot().Position
 	local flagPosition = context.targetFlag:GetPivot().Position :: Vector3
 	-- need to equalize Y as the flag is taller than the person, but we don't care about that distance
 	flagPosition = Vector3.new(flagPosition.X, characterPosition.Y, flagPosition.Z)
@@ -53,7 +52,7 @@ local function visualizeRay(context: Context, origin: Vector3, endPosition: Vect
 	local distance = (endPosition - origin).Magnitude
 
 	-- Create the visual part
-	local part = character:WaitForChild("RayVisual".. context.character.Name) :: Part
+	local part = character:WaitForChild("RayVisual" .. context.character.Name) :: Part
 	part.Material = Enum.Material.Neon -- Makes it glow nicely
 	part.Color = color
 	part.Shape = Enum.PartType.Block
@@ -77,27 +76,32 @@ end
 
 -- Check if a player is within detection range.
 local function isPlayerNearby(context: Context, detection_range: number, checkYAxis: boolean): boolean
-	local character = context.character :: Model
-	local characterPosition = character:GetPivot().Position
-	local isChasing = character:GetAttribute("IsChasing") 
+	local char = context.character :: Model
+	local characterPosition = char:GetPivot().Position
+	local isChasing = character:GetAttribute("IsChasing")
 	--print ("isChasing: ", isChasing)
 	-- isChasing is set while pathfinding.  I don't want to stop the pathfinding if the player suddenly
 	-- ducks out of sight.  The guard should still go to the position.
 	-- BUT... this cannot be used for the attack test, so checkYAxis is only used for attack test
-	if isChasing and not checkYAxis then return true end
-	
+	if isChasing and not checkYAxis then
+		return true
+	end
+
 	local nearbyPlayer = nil
 	local nearestDistance = detection_range
 
 	for _, player in Players:GetPlayers() do
 		local playerCharacter = player.Character :: Model
-		if not playerCharacter then continue end
-		if not player:GetAttribute("ready") then return end
+		if not playerCharacter then
+			continue
+		end
+		if not player:GetAttribute("ready") then
+			return
+		end
 		local plrHumanoid = playerCharacter:FindFirstChild("Humanoid") :: Humanoid
 		if plrHumanoid and plrHumanoid.Health > 0 and playerCharacter:FindFirstChild("HumanoidRootPart") then
 			local playerPosition = playerCharacter:GetPivot().Position
 			if checkYAxis then
-				
 				--[[
 				
 				TODO:	Instead of just checking Y position, use a downward raycast to see if the humanoid(s) 
@@ -110,7 +114,7 @@ local function isPlayerNearby(context: Context, detection_range: number, checkYA
 						Adjust the character Position to use the floor Y position for the distance calculation
 				
 				]]
-				
+
 				--print ('player Y: ', playerPosition.Y)
 				--print ('character Y: ', characterPosition.Y)
 				--print ('diff: ', math.abs(characterPosition.Y - playerPosition.Y))
@@ -118,7 +122,7 @@ local function isPlayerNearby(context: Context, detection_range: number, checkYA
 				if math.abs(characterPosition.Y - playerPosition.Y) > 10 then
 					--print ('player Y out of range')
 					continue
-				else
+					-- else
 					--print ('player Y in range')
 				end
 			end
@@ -128,14 +132,14 @@ local function isPlayerNearby(context: Context, detection_range: number, checkYA
 			if (characterPosition - playerPosition).Magnitude <= nearestDistance then
 				local raycastParams = RaycastParams.new()
 				if activeMap:FindFirstChild("Castle") then
-					raycastParams.ExcludeInstances = {character, activeMap.Castle.Railings }
+					raycastParams.ExcludeInstances = { character, activeMap.Castle.Railings }
 				else
-					raycastParams.FilterDescendantsInstances = {character}
+					raycastParams.FilterDescendantsInstances = { character }
 				end
 				local head = character:FindFirstChild("Head")
 				local charEyePosition
 				if head:IsA("MeshPart") then
-					charEyePosition = head.Position 
+					charEyePosition = head.Position
 				elseif head:IsA("Model") then
 					charEyePosition = head:FindFirstChild("Handle").Position
 				else
@@ -152,23 +156,28 @@ local function isPlayerNearby(context: Context, detection_range: number, checkYA
 					end
 					if raycastResult.Instance:IsDescendantOf(playerCharacter) then
 						context.targetPlayer = player
-						if detection_range == CHASE_RANGE then
-							--print ('player is near for chase')
-						else
-							--print ('player is near for attack')
-						end
+						-- if detection_range == CHASE_RANGE then
+						-- 	--print ('player is near for chase')
+						-- else
+						-- 	--print ('player is near for attack')
+						-- end
 						nearbyPlayer = player
 						nearestDistance = (characterPosition - playerPosition).Magnitude
 					else
 						if character:GetAttribute("state") == "Attack" then
-							print ('player is blocked by: ', raycastResult.Instance.Name)
+							print("player is blocked by: ", raycastResult.Instance.Name)
 						end
-					end				
+					end
 				else
 					if GameParameters.raycastDebug then
-						visualizeRay(context, charEyePosition, charEyePosition + rayDirection, Color3.fromRGB(255, 0,0))
+						visualizeRay(
+							context,
+							charEyePosition,
+							charEyePosition + rayDirection,
+							Color3.fromRGB(255, 0, 0)
+						)
 					end
-					print ('player is not in eyesight')
+					print("player is not in eyesight")
 				end
 			end
 		end
@@ -177,7 +186,7 @@ local function isPlayerNearby(context: Context, detection_range: number, checkYA
 		context.targetPlayer = nearbyPlayer
 		return true
 	else
-		return false		
+		return false
 	end
 end
 
@@ -196,7 +205,7 @@ end
 local function isPlayerNotNearbyForAttack(context: Context): boolean
 	local result = not isPlayerNearby(context, ATTACK_RANGE, true)
 	if result then
-		print('leave attack state for chase')
+		print("leave attack state for chase")
 	end
 	return result
 end
@@ -258,7 +267,6 @@ local defenderStateMachine: StateMachine = {
 		lastAttackTime = 0,
 	},
 }
-
 
 character:SetAttribute("state", defenderStateMachine.activeState.name)
 character:SetAttribute("IsChasing", false)
