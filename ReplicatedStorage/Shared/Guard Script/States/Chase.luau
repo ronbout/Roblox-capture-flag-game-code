@@ -54,13 +54,12 @@ local function chase(context: Context)
 
 		if not canSee(context.character, targetCharacter) then
 			-- if we cannot see the target, then we just continue on our current pathfinding path.
-			print("cannot see")
+			-- print("cannot see")
 			return
 		end
 
 		if not context.origTargetPosition then
-			-- this should not happen, but if it does, we just continue on our current pathfinding path.
-			print("origTargetPosition is nil")
+			-- print("origTargetPosition is nil")
 			return
 		end
 		local minTolerance = 10 -- we don't wan to recalc too much as we get closer
@@ -73,7 +72,7 @@ local function chase(context: Context)
 		-- print("targetDistance: ", targetDistance, " tolerance: ", tolerance)
 
 		if targetDistance > tolerance then
-			print("Target has moved too far from original position.  Recalc path.")
+			-- print("Target has moved too far from original position.  Recalc path.")
 			context.character:SetAttribute("recalcPath", true)
 		end
 		return
@@ -194,10 +193,12 @@ end
 
 local function onEnter(context: Context)
 	context.humanoid.WalkSpeed = 14
+	context.character:SetAttribute("IsAttacking", false)
 end
 
 local function onExit(context: Context)
 	context.humanoid.WalkSpeed = 12
+	context.character:SetAttribute("IsChasing", false)
 end
 
 local Chase: State = {

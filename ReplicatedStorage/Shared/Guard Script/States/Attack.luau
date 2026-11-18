@@ -68,9 +68,14 @@ local function onEnter(context: Context)
 	context.character:SetAttribute("IsChasing", false)
 end
 
+local function onExit(context: Context)
+	context.character:SetAttribute("IsAttacking", false)
+end
+
 local Attack: State = {
 	name = "Attack",
 	onEnter = onEnter,
+	onExit = onExit,
 	onStay = attack,
 }
 
