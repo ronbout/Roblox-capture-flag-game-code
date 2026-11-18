@@ -11,6 +11,33 @@ local GameParameters = require(GameInfo.GameParameters)
 type State = SimpleStateMachine.State
 type Context = SimpleStateMachine.Context
 
+local function canSee(viewChar, target)
+	local raycastParams = RaycastParams.new()
+
+	local detectionDistance = viewChar:GetAttribute("DetectionDistance") or 100
+
+	raycastParams.ExcludeInstances = { viewChar }
+	local head = viewChar:FindFirstChild("Head")
+	local charEyePosition
+	if head:IsA("MeshPart") then
+		charEyePosition = head.Position
+	elseif head:IsA("Model") then
+		charEyePosition = head:FindFirstChild("Handle").Position
+	else
+		-- if can't find head, just take character getPivot and go up 2 studs
+		charEyePosition = viewChar:GetPivot().Position + Vector3.new(0, 2, 0)
+	end
+
+	local rayDirection = (target:GetPivot().Position - charEyePosition).Unit * detectionDistance
+	local raycastResult = workspace:Raycast(charEyePosition, rayDirection, raycastParams)
+
+	if raycastResult and raycastResult.Instance:IsDescendantOf(target) then
+		return true
+	else
+		return false
+	end
+end
+
 -- Walk towards the spotted player and attack if close enough.
 local function chase(context: Context)
 	local targetCharacter = context.targetPlayer.Character
@@ -20,6 +47,35 @@ local function chase(context: Context)
 
 	if context.character:GetAttribute("IsChasing") then
 		--print ('IsChasing tick')
+
+		-- check if the target has strayed too far from the original target position, and it can be seen.
+		-- The distance check is based on a percentage of the distance that the NPC is currently from the target.
+		-- If so, abort the pathfinding and recalc a new path by setting the recalcPath attribute to true
+
+		if not canSee(context.character, targetCharacter) then
+			-- if we cannot see the target, then we just continue on our current pathfinding path.
+			print("cannot see")
+			return
+		end
+
+		if not context.origTargetPosition then
+			-- this should not happen, but if it does, we just continue on our current pathfinding path.
+			print("origTargetPosition is nil")
+			return
+		end
+		local minTolerance = 10 -- we don't wan to recalc too much as we get closer
+		local toleranceRatio = 0.25 -- we want to recalc more as we get further away
+
+		local npcDistance = (context.humanoidRootPart.Position - context.origTargetPosition).Magnitude
+		local targetDistance = (targetCharacter:GetPivot().Position - context.origTargetPosition).Magnitude
+		local tolerance = math.max(minTolerance, npcDistance * toleranceRatio)
+
+		print("targetDistance: ", targetDistance, " tolerance: ", tolerance)
+
+		if targetDistance > tolerance then
+			print("Target has moved too far from original position.  Recalc path.")
+			context.character:SetAttribute("recalcPath", true)
+		end
 		return
 	end
 
@@ -31,8 +87,10 @@ local function chase(context: Context)
 			context.character:SetAttribute("IsChasing", false)
 			return true
 		end
-		-- check if the target has strayed too far from the original target position.
-		-- If so, abort the pathfinding and recalc a new path.
+
+		if context.character:GetAttribute("recalcPath") then
+			return true
+		end
 		return false
 	end
 
@@ -69,12 +127,13 @@ local function chase(context: Context)
 		pathfindingObj = nil
 		return
 	end
-
+	context.origTargetPosition = targetPosition
 	local _pathResult = pathfindingObj:StartPath()
 
 	pathfindingObj.OnComplete:Connect(function()
-		print("Pathfinding completed for ", context.character.Name, context.targetFlag.Name)
+		print("Pathfinding completed for ", context.character.Name, context.targetPlayer.Name)
 		context.character:SetAttribute("IsChasing", false)
+		context.origTargetPosition = nil
 		pathfindingObj:Destroy()
 		pathfindingObj = nil
 	end)
@@ -82,13 +141,20 @@ local function chase(context: Context)
 	pathfindingObj.OnNoProgress:Connect(function()
 		print("Pathfinding not making progress ")
 		context.character:SetAttribute("IsChasing", false)
+		context.origTargetPosition = nil
 		pathfindingObj:Destroy()
 		pathfindingObj = nil
 	end)
 
 	pathfindingObj.OnAbort:Connect(function()
-		print("Walking to flag aborted ")
+		if context.character:GetAttribute("recalcPath") == true then
+			context.character:SetAttribute("recalcPath", false)
+			print("Chase aborted to recalc path for ", context.character.Name, context.targetPlayer.Name)
+		else
+			print("Chase aborted for ", context.character.Name, context.targetPlayer.Name)
+		end
 		context.character:SetAttribute("IsChasing", false)
+		context.origTargetPosition = nil
 		pathfindingObj:Destroy()
 		pathfindingObj = nil
 	end)
@@ -119,7 +185,7 @@ local function chase(context: Context)
 	--			return
 	--		end
 	--		--warn ('waypoint not reached!!  Waypoint action: ', waypoint.Action)
-	--		warn ("waypoints not reached.  ".. i .. " of ".. #waypoints .. " going to " .. context.targetFlag.Name .. " for " .. context.character.Name)
+	--		warn ("waypoints not reached.  ".. i .. " of ".. #waypoints .. " going to " .. context.targetPlayer.Name .. " for " .. context.character.Name)
 	--		return
 	--	end
 	--end

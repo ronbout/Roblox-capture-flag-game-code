@@ -134,7 +134,7 @@ local function isPlayerNearby(context: Context, detection_range: number, checkYA
 				if activeMap:FindFirstChild("Castle") then
 					raycastParams.ExcludeInstances = { character, activeMap.Castle.Railings }
 				else
-					raycastParams.FilterDescendantsInstances = { character }
+					raycastParams.ExcludeInstances = { character }
 				end
 				local head = character:FindFirstChild("Head")
 				local charEyePosition
@@ -263,6 +263,7 @@ local defenderStateMachine: StateMachine = {
 		currentFlagNumber = 1,
 		targetFlag = nil,
 		targetPlayer = nil,
+		origTargetPosition = nil,
 		idleStartTime = os.clock(),
 		lastAttackTime = 0,
 	},
